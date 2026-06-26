@@ -621,7 +621,7 @@ const NODES = {
 
         choices: [
 
-            { text: '屏住呼吸听', next: 'node09' },
+            { text: '屏住呼吸听', next: 'node09', statEffect: { sanity: 8 } },
 
             { text: '去门缝看看外面是谁', next: 'node08b', vibration: [100, 200, 100] },
 
@@ -661,9 +661,11 @@ const NODES = {
 
         signal: 1, battery: 43,
 
+        setFlags: { saw_bride_shoes: true },
+
         choices: [
 
-            { text: '捂住嘴往后退', next: 'node09' }
+            { text: '捂住嘴往后退', next: 'node09', statEffect: { fear: 10 } }
 
         ]
 
@@ -869,7 +871,7 @@ const NODES = {
 
         time: '03:12',
 
-        text: '你屏住呼吸整整十秒钟，肺快憋炸了。纸人的头终于缓缓转了回去。你大口喘气，跌坐在地上。\n\n地上有一张黄纸，上面画着地图。地图指向老宅的——地下室。',
+        text: '你屏住呼吸整整十秒钟，肺快憋炸了。纸人的头终于缓缓转了回去。你大口喘气，跌坐在地上。\n\n地上有一张黄纸，上面画着地图。地图指向老宅的——地下室。\n\n你心里清楚，今晚但凡还有一条活路，多半就藏在这张地图指的地方——可你也怕，越往下走，越回不了头。',
 
         vibration: [30, 60, 30, 60, 30, 60, 30],
 
@@ -1023,6 +1025,7 @@ const NODES = {
 
         choices: [
 
+            { text: '红绣鞋——这双鞋我守灵时从门缝里见过！抢在她站直前，贴着墙根溜过去', next: 'node21', requireFlag: 'saw_bride_shoes' },
             { text: '跑！往门外跑！', next: 'node19' },
 
             { text: '跪下来求她', next: 'node_dead7' }
@@ -1087,6 +1090,7 @@ const NODES = {
 
         choices: [
 
+            { text: '掏出镇棺符贴上手机屏幕，死死压住那张脸', next: 'node21', requireItem: 'paper_talisman' },
             { text: '我不回头！我不看！', next: 'node21' },
 
             { text: '颤抖着点击"好"', next: 'node_dead8' }
