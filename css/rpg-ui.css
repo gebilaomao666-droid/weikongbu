@@ -1,0 +1,857 @@
+/* ========================================
+   回魂夜 · RPG UI 全面重构 v2
+   完全按照UI设计图实现
+   ======================================== */
+
+/* ===== 全局纸钱纹理背景 ===== */
+#app {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: #080505;
+    overflow: hidden;
+}
+
+/* 纸钱纹理层（UI底层背景） */
+#rpg-paper-bg {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background-image: url('../img/ui/bg_paper.png');
+    background-size: cover;
+    background-position: center;
+    opacity: 0.6;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* ===== 顶部状态条 HUD ===== */
+#rpg-hud {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    z-index: 100;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 8px 16px;
+    pointer-events: none;
+}
+#rpg-hud > * {
+    pointer-events: auto;
+}
+#rpg-hud.hidden {
+    display: none;
+}
+
+/* 状态条背景 - 使用status_bars.png */
+.hud-status-bg {
+    position: relative;
+    width: 520px;
+    max-width: 55vw;
+    height: 140px;
+    background-image: url('../img/ui/status_bars.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: left top;
+}
+
+/* 状态数值覆盖层 */
+.hud-status-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-left: 52px;
+    padding-top: 4px;
+    gap: 2px;
+}
+
+/* 单行状态 */
+.status-row {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    position: relative;
+}
+.status-row .stat-track {
+    width: 340px;
+    max-width: 62%;
+    height: 18px;
+    position: relative;
+}
+.status-row .stat-fill {
+    height: 100%;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 2px;
+    opacity: 0.85;
+}
+.status-row.hp .stat-fill {
+    background: linear-gradient(90deg, rgba(138,0,0,0.9), rgba(200,0,0,0.95));
+}
+.status-row.sanity .stat-fill {
+    background: linear-gradient(90deg, rgba(180,140,60,0.9), rgba(220,180,100,0.95));
+}
+.status-row.fear .stat-fill {
+    background: linear-gradient(90deg, rgba(0,120,60,0.9), rgba(0,180,80,0.95));
+}
+.status-row .stat-value {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: rgba(201,168,108,0.7);
+    font-family: "Courier New", monospace;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+
+/* HUD右侧工具区 */
+.hud-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(5,2,2,0.7);
+    border: 1px solid rgba(90,30,30,0.3);
+    padding: 4px 8px;
+}
+.hud-tool-btn {
+    width: 32px;
+    height: 32px;
+    background: rgba(20,10,5,0.6);
+    border: 1px solid rgba(90,50,30,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+.hud-tool-btn:hover {
+    border-color: rgba(138,0,0,0.5);
+    background: rgba(40,15,10,0.7);
+}
+
+/* 小图标 - ic_icons.png 1行×16列 sprite (2172×724) */
+/* 每个图标占 100%/15 ≈ 6.6667%, background-size: 1600% 100% */
+.icon-back     { background: url('../img/ui/ic_icons.png') 0%       0% / 1600% 100%; }
+.icon-book     { background: url('../img/ui/ic_icons.png') 6.6667%  0% / 1600% 100%; }
+.icon-map      { background: url('../img/ui/ic_icons.png') 13.3333% 0% / 1600% 100%; }
+.icon-bag      { background: url('../img/ui/ic_icons.png') 20%      0% / 1600% 100%; }
+.icon-doll     { background: url('../img/ui/ic_icons.png') 26.6667% 0% / 1600% 100%; }
+.icon-doc      { background: url('../img/ui/ic_icons.png') 33.3333% 0% / 1600% 100%; }
+.icon-settings { background: url('../img/ui/ic_icons.png') 40%      0% / 1600% 100%; }
+.icon-question { background: url('../img/ui/ic_icons.png') 46.6667% 0% / 1600% 100%; }
+.icon-alert    { background: url('../img/ui/ic_icons.png') 53.3333% 0% / 1600% 100%; }
+.icon-eye      { background: url('../img/ui/ic_icons.png') 60%      0% / 1600% 100%; }
+.icon-search   { background: url('../img/ui/ic_icons.png') 66.6667% 0% / 1600% 100%; }
+.icon-plus     { background: url('../img/ui/ic_icons.png') 73.3333% 0% / 1600% 100%; }
+.icon-lock     { background: url('../img/ui/ic_icons.png') 80%      0% / 1600% 100%; }
+.icon-unlock   { background: url('../img/ui/ic_icons.png') 86.6667% 0% / 1600% 100%; }
+.icon-trash    { background: url('../img/ui/ic_icons.png') 93.3333% 0% / 1600% 100%; }
+.icon-close    { background: url('../img/ui/ic_icons.png') 100%     0% / 1600% 100%; }
+
+.icon-img {
+    width: 24px;
+    height: 24px;
+    display: inline-block;
+    filter: brightness(1.1) contrast(1.1);
+}
+.hud-tool-btn:hover .icon-img {
+    filter: brightness(1.3) contrast(1.1);
+}
+
+/* ===== 场景名称标签 ===== */
+.hud-scene {
+    position: fixed;
+    top: 155px;
+    right: 16px;
+    font-size: 13px;
+    color: #8a0000;
+    letter-spacing: 3px;
+    padding: 4px 14px;
+    border: 1px solid rgba(138,0,0,0.25);
+    background: rgba(10,3,3,0.7);
+    z-index: 100;
+    text-shadow: 0 0 8px rgba(138,0,0,0.3);
+}
+
+/* ===== RPG 对话框（血滴边框） ===== */
+#rpg-dialog {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    z-index: 50;
+    padding: 0 16px 16px;
+    pointer-events: none;
+}
+#rpg-dialog.active {
+    pointer-events: auto;
+}
+
+.dialog-blood-frame {
+    position: relative;
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    aspect-ratio: 1672 / 941;
+    background-image: url('../img/ui/border_blood.png');
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 8% 12% 10% 12%;
+}
+
+/* 对话框文字区域 */
+.dialog-text-area {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow-y: auto;
+}
+
+/* 带头像的对话框（使用panel_dialog.png） */
+.dialog-character-frame {
+    position: relative;
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    aspect-ratio: 1672 / 941;
+    background-image: url('../img/ui/panel_dialog.png');
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    display: flex;
+    padding: 6% 8% 8% 28%;
+}
+
+.dialog-character-frame .dialog-text-area {
+    justify-content: center;
+}
+
+.dialog-speaker-name {
+    position: absolute;
+    bottom: 12%;
+    left: 8%;
+    font-size: 14px;
+    color: #ff4444;
+    letter-spacing: 3px;
+    text-shadow: 0 0 8px rgba(138,0,0,0.4);
+}
+
+/* 对话框文字 */
+.dialog-text {
+    font-size: 17px;
+    line-height: 1.9;
+    color: #d4c4a0;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+    letter-spacing: 0.5px;
+}
+.dialog-text .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background: #8a0000;
+    margin-left: 2px;
+    animation: blink 0.8s infinite;
+    vertical-align: text-bottom;
+}
+
+/* 点击继续提示 */
+.dialog-next-hint {
+    position: absolute;
+    bottom: 6%;
+    right: 10%;
+    font-size: 11px;
+    color: rgba(138,0,0,0.5);
+    animation: hint-pulse 1.5s infinite;
+    pointer-events: none;
+}
+
+/* ===== 选项按钮（符咒风格） ===== */
+#choices-rpg {
+    position: fixed;
+    bottom: 2%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 600px;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+#choices-rpg.active {
+    pointer-events: auto;
+}
+
+.talisman-btn {
+    position: relative;
+    padding: 14px 24px;
+    background: linear-gradient(180deg, rgba(80,15,15,0.92), rgba(40,8,8,0.96));
+    border: 1px solid rgba(138,0,0,0.45);
+    color: #c9a86c;
+    font-size: 15px;
+    font-family: inherit;
+    cursor: pointer;
+    letter-spacing: 2px;
+    text-align: center;
+    transition: all 0.25s ease;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+.talisman-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(138,0,0,0.15), transparent);
+    transition: left 0.5s ease;
+}
+.talisman-btn:hover::before {
+    left: 100%;
+}
+.talisman-btn:hover {
+    border-color: rgba(138,0,0,0.8);
+    box-shadow: 0 0 25px rgba(138,0,0,0.3), inset 0 0 25px rgba(138,0,0,0.08);
+    color: #e8d0a0;
+    transform: translateY(-1px);
+}
+.talisman-btn:active {
+    transform: translateY(1px) scale(0.98);
+    background: linear-gradient(180deg, rgba(40,8,8,0.96), rgba(25,5,5,0.98));
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
+}
+
+.talisman-btn.with-index {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-align: left;
+}
+.talisman-btn .talisman-index {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(138,0,0,0.25);
+    border: 1px solid rgba(138,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #ff5555;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+/* ===== 主菜单系统 ===== */
+#main-menu {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 99980;
+    background: #080505;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.menu-panel {
+    position: relative;
+    width: 90vw;
+    max-width: 720px;
+    aspect-ratio: 1448 / 1086;
+    background-image: url('../img/ui/panel_menu.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 22%;
+    padding-bottom: 10%;
+}
+.menu-title-text {
+    font-size: 34px;
+    color: #cc2222;
+    letter-spacing: 14px;
+    margin-bottom: 7%;
+    text-shadow: 0 0 10px rgba(0,0,0,0.9), 0 0 25px rgba(138,0,0,0.6), 0 2px 4px rgba(0,0,0,0.8);
+    font-family: "KaiTi", "楷体", serif;
+    font-weight: bold;
+}
+.menu-items-rpg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    width: 42%;
+    margin-top: 2%;
+}
+.menu-item-rpg {
+    width: 100%;
+    padding: 3.2% 0;
+    background: transparent;
+    border: none;
+    color: #e8d8b0;
+    font-size: 18px;
+    font-family: inherit;
+    cursor: pointer;
+    letter-spacing: 6px;
+    text-align: center;
+    transition: all 0.3s ease;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.95), 0 0 20px rgba(0,0,0,0.9), -1px -1px 0 rgba(0,0,0,0.5);
+}
+.menu-item-rpg:hover {
+    color: #fff5e0;
+    text-shadow: 0 0 18px rgba(201,168,108,0.6), 0 2px 4px rgba(0,0,0,0.95), -1px -1px 0 rgba(0,0,0,0.5);
+}
+.menu-close-btn {
+    position: absolute;
+    top: 7%;
+    right: 8%;
+    width: 40px;
+    height: 40px;
+    background: rgba(20,8,5,0.5);
+    border: 1px solid rgba(90,50,30,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 20px;
+    color: #5a3a1a;
+    transition: all 0.2s;
+    z-index: 10;
+}
+.menu-close-btn:hover {
+    border-color: rgba(138,0,0,0.5);
+    color: #c9a86c;
+}
+
+/* ===== 道具栏 ===== */
+#inventory-panel {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 99970;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(6px);
+}
+.inv-frame {
+    width: 90vw;
+    max-width: 800px;
+    aspect-ratio: 1672 / 941;
+    background-image: url('../img/ui/border_blood.png');
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    display: flex;
+    flex-direction: column;
+    padding: 8% 10% 10%;
+}
+.inv-frame .inv-title {
+    font-size: 22px;
+    color: #8a0000;
+    text-align: center;
+    letter-spacing: 6px;
+    margin-bottom: 16px;
+    text-shadow: 0 0 10px rgba(138,0,0,0.3);
+    font-family: "KaiTi", "楷体", serif;
+}
+.inv-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    flex: 1;
+    overflow-y: auto;
+}
+.inv-slot {
+    aspect-ratio: 1;
+    background: rgba(20,10,5,0.6);
+    border: 1px solid rgba(90,50,30,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+.inv-slot:hover {
+    border-color: rgba(138,0,0,0.5);
+    box-shadow: 0 0 10px rgba(138,0,0,0.15);
+}
+.inv-slot.empty {
+    opacity: 0.3;
+    cursor: default;
+}
+.inv-slot.empty:hover {
+    border-color: rgba(90,50,30,0.3);
+    box-shadow: none;
+}
+.inv-slot img {
+    width: 75%;
+    height: 75%;
+    object-fit: contain;
+    filter: drop-shadow(0 0 4px rgba(138,0,0,0.2));
+}
+.inv-detail-area {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(90,50,30,0.3);
+    min-height: 50px;
+}
+.inv-detail-area .detail-name {
+    font-size: 15px;
+    color: #c9a86c;
+    margin-bottom: 4px;
+}
+.inv-detail-area .detail-desc {
+    font-size: 13px;
+    color: #5a3a1a;
+    line-height: 1.5;
+}
+
+/* ===== 存档面板 ===== */
+#save-menu-rpg {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 99990;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(6px);
+}
+.save-frame {
+    width: 95vw;
+    max-width: 960px;
+    aspect-ratio: 1916 / 821;
+    background-image: url('../img/ui/panel_save_slots.png');
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    display: flex;
+    flex-direction: column;
+    padding: 6% 5% 8%;
+}
+.save-frame .save-title {
+    font-size: 20px;
+    color: #8a0000;
+    text-align: center;
+    letter-spacing: 6px;
+    margin-bottom: 12px;
+    text-shadow: 0 0 10px rgba(138,0,0,0.3);
+    font-family: "KaiTi", "楷体", serif;
+}
+.save-slots-area {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    justify-content: center;
+}
+.save-slot-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: rgba(10,5,5,0.5);
+    border: 1px solid rgba(90,50,30,0.25);
+    transition: all 0.2s;
+}
+.save-slot-row:hover {
+    border-color: rgba(138,0,0,0.35);
+    background: rgba(25,10,5,0.5);
+}
+.save-slot-row .slot-thumb {
+    width: 100px;
+    height: 60px;
+    object-fit: cover;
+    border: 1px solid rgba(90,50,30,0.4);
+    filter: brightness(0.5) contrast(1.1);
+}
+.save-slot-row.empty .slot-thumb {
+    background: rgba(8,4,4,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: #2a1515;
+}
+.save-slot-row .slot-info {
+    flex: 1;
+}
+.save-slot-row .slot-name {
+    font-size: 15px;
+    color: #c9a86c;
+    margin-bottom: 3px;
+}
+.save-slot-row .slot-meta {
+    font-size: 12px;
+    color: #5a3a1a;
+    display: flex;
+    gap: 14px;
+}
+.save-slot-row .slot-actions {
+    display: flex;
+    gap: 6px;
+}
+.slot-action {
+    padding: 5px 12px;
+    font-size: 12px;
+    background: rgba(30,15,10,0.85);
+    border: 1px solid rgba(90,50,30,0.35);
+    color: #8a7a5a;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+}
+.slot-action:hover {
+    border-color: rgba(138,0,0,0.5);
+    color: #c9a86c;
+}
+.slot-action.delete:hover {
+    border-color: #8a0000;
+    color: #ff5555;
+}
+
+/* ===== 设置面板 ===== */
+#settings-panel {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 99975;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(6px);
+}
+.settings-frame {
+    width: 90vw;
+    max-width: 600px;
+    aspect-ratio: 1672 / 941;
+    background-image: url('../img/ui/popup_confirm.png');
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    display: flex;
+    flex-direction: column;
+    padding: 12% 15% 15%;
+}
+.settings-frame .settings-title {
+    font-size: 22px;
+    color: #8a0000;
+    text-align: center;
+    letter-spacing: 6px;
+    margin-bottom: 24px;
+    text-shadow: 0 0 10px rgba(138,0,0,0.3);
+    font-family: "KaiTi", "楷体", serif;
+}
+.setting-row-rpg {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(90,50,30,0.2);
+}
+.setting-row-rpg .setting-label {
+    font-size: 14px;
+    color: #a08060;
+}
+.setting-row-rpg input[type="range"] {
+    width: 120px;
+    accent-color: #8a0000;
+}
+.toggle-switch {
+    width: 44px;
+    height: 22px;
+    background: rgba(90,50,30,0.4);
+    border-radius: 11px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+.toggle-switch.on {
+    background: rgba(138,0,0,0.5);
+}
+.toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 18px; height: 18px;
+    background: #c9a86c;
+    border-radius: 50%;
+    transition: transform 0.3s;
+}
+.toggle-switch.on::after {
+    transform: translateX(22px);
+}
+
+/* ===== 确认弹窗（提示弹窗） ===== */
+#fake-alert .alert-box-rpg {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90vw;
+    max-width: 560px;
+    aspect-ratio: 1672 / 941;
+    background-image: url('../img/ui/popup_confirm.png');
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 15% 15% 18%;
+    z-index: 2;
+}
+.alert-box-rpg .alert-title-rpg {
+    font-size: 22px;
+    color: #8a0000;
+    letter-spacing: 6px;
+    margin-bottom: 16px;
+    text-shadow: 0 0 10px rgba(138,0,0,0.3);
+    font-family: "KaiTi", "楷体", serif;
+}
+.alert-box-rpg .alert-msg-rpg {
+    font-size: 15px;
+    color: #c9a86c;
+    line-height: 1.8;
+    text-align: center;
+    margin-bottom: 20px;
+}
+.alert-box-rpg .alert-btn-rpg {
+    padding: 10px 36px;
+    background: rgba(80,15,15,0.8);
+    border: 1px solid rgba(138,0,0,0.4);
+    color: #c9a86c;
+    font-size: 15px;
+    font-family: inherit;
+    cursor: pointer;
+    letter-spacing: 3px;
+    transition: all 0.2s;
+}
+.alert-box-rpg .alert-btn-rpg:hover {
+    border-color: rgba(138,0,0,0.7);
+    box-shadow: 0 0 15px rgba(138,0,0,0.2);
+}
+
+/* ===== 动画 ===== */
+@keyframes menu-fade-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+.menu-enter-active { animation: menu-fade-in 0.3s ease; }
+.menu-leave-active { transition: opacity 0.2s ease; }
+.menu-leave-to { opacity: 0; }
+
+@keyframes panel-slide-up {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.panel-enter-active { animation: panel-slide-up 0.3s ease; }
+.panel-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.panel-leave-to { opacity: 0; transform: translateY(20px); }
+
+/* ===== 移动端适配 ===== */
+@media (max-width: 768px) {
+    .hud-status-bg {
+        width: 55vw;
+        height: 100px;
+    }
+    .hud-status-overlay {
+        padding-left: 40px;
+        gap: 0px;
+    }
+    .status-row {
+        height: 30px;
+    }
+    .status-row .stat-track {
+        width: 55%;
+        height: 14px;
+    }
+    .status-row .stat-value {
+        font-size: 9px;
+    }
+    .hud-scene {
+        top: 110px;
+        font-size: 11px;
+    }
+    .dialog-blood-frame,
+    .dialog-character-frame {
+        padding: 10% 10% 12%;
+    }
+    .dialog-text {
+        font-size: 15px;
+    }
+    .talisman-btn {
+        padding: 12px 18px;
+        font-size: 14px;
+    }
+    .menu-panel {
+        max-width: 95vw;
+    }
+    .menu-title-text {
+        font-size: 24px;
+    }
+    .menu-item-rpg {
+        font-size: 15px;
+    }
+    .save-frame {
+        padding: 8% 4% 10%;
+    }
+    .save-slot-row .slot-thumb {
+        width: 70px;
+        height: 45px;
+    }
+    .inv-frame {
+        padding: 10% 6% 12%;
+    }
+    .inv-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+    }
+    .settings-frame {
+        padding: 15% 10% 18%;
+    }
+}
+
+@media (max-width: 480px) {
+    .hud-status-bg {
+        width: 58vw;
+        height: 80px;
+    }
+    .hud-status-overlay {
+        padding-left: 32px;
+    }
+    .status-row {
+        height: 24px;
+    }
+    .status-row .stat-track {
+        height: 10px;
+    }
+    .hud-scene {
+        top: 92px;
+    }
+    .dialog-text {
+        font-size: 14px;
+        line-height: 1.7;
+    }
+    .menu-title-text {
+        font-size: 20px;
+    }
+    .inv-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}

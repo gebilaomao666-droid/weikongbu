@@ -1,0 +1,8 @@
+# 系统 / 编辑器杂物
+Thumbs.db
+desktop.ini
+.DS_Store
+*.log
+
+# 本地预览脚本（不发布）
+_serve_local.mjs

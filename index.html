@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>回魂夜 · 纸人招魂</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css?v=20260601-hotfix21">
+    <link rel="stylesheet" href="css/rpg-ui.css?v=20260601-hotfix21">
+    <link rel="stylesheet" href="css/rpg-redesign.css?v=20260601-hotfix21">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="img/icon-192.png">
+    <meta name="theme-color" content="#8a0000">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script>
+window.onerror = function(msg, url, line, col, err) {
+    document.body.innerHTML = '<div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;color:#f00;padding:40px;font-size:16px;font-family:monospace;z-index:99999;overflow:auto;"><h2>JS ERROR</h2><pre>' + msg + '<br>at ' + url + ':' + line + ':' + col + '<br><br>' + (err && err.stack ? err.stack : '') + '</pre></div>';
+    return false;
+};
+</script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div id="app" class="rpg-mode">
+        <div id="ui-topbar" v-if="false">
+            <div class="topbar-shell">
+                <button class="topbar-close" type="button" aria-label="关闭">×</button>
+                <div class="topbar-center">
+                    <div class="topbar-title">回魂夜 · 纸人招魂</div>
+                    <div class="topbar-subtitle">47.95.124.216</div>
+                </div>
+                <button class="topbar-more" type="button" aria-label="更多">⋯</button>
+            </div>
+        </div>
+
+        <!-- ===== 纸钱纹理UI背景 ===== -->
+        <div id="rpg-paper-bg" v-if="rpgMode && screen === 'start'"></div>
+
+        <!-- ===== 恐怖背景层 ===== -->
+        <div id="ghost-bg" :style="{ opacity: ghostOpacity }"></div>
+
+        <rpg-2d-stage
+            :screen="screen"
+            :rpg-mode="rpgMode"
+            :bg-image-url="bgImageUrl"
+            :bg-image-visible="bgImageVisible"
+            :bg-image-transition="bgImageTransition"
+            :scene-intro-active="sceneIntroActive"
+            :character-visible="characterVisible"
+            :character-url="characterUrl"
+            :character-emotion="characterEmotion"
+            :character-position="characterPosition"
+            :character-flicker="characterFlicker"
+            :noise-active="noiseActive"
+            :ghost-opacity="ghostOpacity"
+            :chapter="currentChapter"
+        ></rpg-2d-stage>
+
+        <!-- ===== 伪造手机状态栏 ===== -->
+        <div id="fake-statusbar" v-if="false">
+            <div class="status-left">
+                <span id="status-time">{{ gameTime }}</span>
+            </div>
+            <div class="status-center" v-if="showChapter">
+                <span class="chapter-tag">{{ currentChapter }}</span>
+            </div>
+            <div class="status-right">
+                <span id="status-signal">
+                    <span v-for="n in 4" :key="n" class="signal-bar" :class="{ off: n > signalBars }"></span>
+                </span>
+                <span id="status-wifi" v-if="signalBars > 0">WiFi</span>
+                <span id="status-wifi" v-else class="no-service">无服务</span>
+                <span id="status-battery">
+                    <span class="battery-body">
+                        <span class="battery-fill" :style="{ width: batteryPercent + '%' }" :class="{ low: batteryPercent <= 20, critical: batteryPercent <= 10 }"></span>
+                    </span>
+                    <span class="battery-text">{{ batteryPercent }}%</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- 分享卡片 -->
+        <div id="share-card-overlay" v-if="shareCardVisible" @click.self="closeShareCard">
+            <div class="share-card-container">
+                <div class="share-card-title">{{ t("shareCardTitle") }}</div>
+                <img :src="shareCardDataUrl" class="share-card-img" alt="分享卡片">
+                <button class="share-card-close" @click="closeShareCard">{{ t("close") }}</button>
+            </div>
+        </div>
+
+        <!-- 时间彩蛋 -->
+        <transition name="fade">
+            <div v-if="showEasterEgg" class="easter-egg">{{ easterEggText }}</div>
+        </transition>
+
+        <transition name="toast">
+            <div id="rpg-toast" v-if="achievementToast">{{ achievementToast }}</div>
+        </transition>
+
+        <!-- ===== 章节标题动画 ===== -->
+        <transition name="chapter-fade">
+            <div id="chapter-title" v-if="chapterTitleVisible">{{ chapterTitle }}</div>
+        </transition>
+
+        <!-- ===== 场景图片展示 ===== -->
+        <div id="scene-image" v-if="sceneImageVisible" @click="closeSceneImage">
+            <div class="scene-overlay">
+                <img :src="sceneImageUrl" class="scene-img" alt="">
+                <div class="scene-vignette"></div>
+                <div class="scene-hint">{{ sceneImageReady ? '点击屏幕继续' : '画面显影中...' }}</div>
+            </div>
+        </div>
+
+        <!-- ===== 舞台开场图过渡 ===== -->
+        <div
+            id="scene-intro-gate"
+            v-if="sceneIntroActive"
+            :class="{ darkening: sceneIntroDarkening }"
+            @click="closeSceneIntro"
+        >
+            <div class="scene-intro-hint">点击屏幕继续</div>
+        </div>
+
+        <!-- ===== 手机短信UI（带开机动画）===== -->
+        <transition name="phone-slide">
+            <div id="phone-sms" v-if="smsVisible">
+                <!-- 手机外壳 -->
+                <div class="phone-frame" :class="{ 'phone-off': phoneBootStep < 2, 'phone-unlock': phoneBootStep >= 4 }">
+                    <!-- 手机顶部刘海 -->
+                    <div class="phone-notch">
+                        <div class="notch-bar"></div>
+                    </div>
+
+                    <!-- 步骤1+2：黑屏 / 锁屏（可点击） -->
+                    <div v-if="phoneBootStep < 4" class="phone-lockscreen" @click="handlePhoneClick">
+                        <div class="lock-time">{{ gameTime }}</div>
+                        <div class="lock-date">{{ smsDate }}</div>
+                        <div class="lock-hint" v-if="phoneBootStep === 1">点击屏幕唤醒手机</div>
+                        <div class="lock-hint" v-if="phoneBootStep === 2">点击屏幕查看通知</div>
+                    </div>
+
+                    <!-- 步骤3：新信息通知（可点击） -->
+                    <div v-if="phoneBootStep === 3" class="phone-notification" @click.stop="handlePhoneClick">
+                        <div class="notif-icon">💬</div>
+                        <div class="notif-body">
+                            <div class="notif-sender">{{ smsSender }}</div>
+                            <div class="notif-preview">有一条新信息</div>
+                        </div>
+                        <div class="notif-time">现在</div>
+                    </div>
+
+                    <!-- 步骤4+5：短信界面 -->
+                    <div v-if="phoneBootStep >= 4" class="phone-app">
+                        <!-- 短信APP顶部导航 -->
+                        <div class="sms-nav">
+                            <div class="nav-back" @click="closeSms">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+                                <span>信息</span>
+                            </div>
+                            <div class="nav-contact">
+                                <div class="contact-avatar" :class="{ 'avatar-creepy': smsCreepy }">{{ smsSender.charAt(0) }}</div>
+                                <div class="contact-name">{{ smsSender }}</div>
+                            </div>
+                            <div class="nav-more">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg>
+                            </div>
+                        </div>
+                        <!-- 短信对话区域 -->
+                        <div class="sms-chat" ref="smsChat">
+                            <div class="chat-date">{{ smsDate }}</div>
+                            <div v-for="(msg, idx) in smsHistory" :key="idx" class="chat-row" :class="msg.type">
+                                <div class="chat-bubble" :class="{ 'bubble-blood': msg.blood, 'bubble-glitch': msg.glitch }">
+                                    <div class="bubble-text">{{ msg.text }}</div>
+                                    <div class="bubble-time">{{ msg.time }}</div>
+                                </div>
+                            </div>
+                            <!-- 正在输入... -->
+                            <div v-if="smsTyping" class="chat-row received">
+                                <div class="chat-bubble typing-bubble">
+                                    <span class="typing-dot"></span>
+                                    <span class="typing-dot"></span>
+                                    <span class="typing-dot"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 底部输入栏 -->
+                        <div class="sms-input-bar">
+                            <div class="input-camera"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+                            <div class="input-box">
+                                <input type="text" placeholder="信息" disabled>
+                            </div>
+                            <div class="input-send"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+                        </div>
+                    </div>
+
+                    <!-- 手机底部横条 -->
+                    <div class="phone-home-bar"></div>
+                </div>
+                <!-- 手机阴影 -->
+                <div class="phone-shadow"></div>
+            </div>
+        </transition>
+
+        <!-- ===== 遗言弹幕 ===== -->
+        <div id="danmu-container">
+            <div v-for="d in danmuList" :key="d.id" class="danmu" :style="d.style">{{ d.text }}</div>
+        </div>
+
+        <!-- ===== RPG HUD ===== -->
+        <div id="rpg-hud" v-if="screen === 'game' && rpgMode && showRpgHud && currentNode && !stageIntroActive && !sceneImageVisible && !sceneExploreVisible && !currentNode.isDeath && !currentNode.isFinal && !currentNode.isEnding">
+            <div class="hud-status-bg">
+                <div class="hud-status-overlay">
+                    <div class="status-row hp">
+                        <div class="stat-track">
+                            <div class="stat-fill" :style="{ width: (playerStats.hp / playerStats.maxHp * 100) + '%' }"></div>
+                            <span class="stat-value">{{ playerStats.hp }}/{{ playerStats.maxHp }}</span>
+                        </div>
+                    </div>
+                    <div class="status-row sanity">
+                        <div class="stat-track">
+                            <div class="stat-fill" :style="{ width: (playerStats.sanity / playerStats.maxSanity * 100) + '%' }"></div>
+                            <span class="stat-value">{{ playerStats.sanity }}/{{ playerStats.maxSanity }}</span>
+                        </div>
+                    </div>
+                    <div class="status-row fear">
+                        <div class="stat-track">
+                            <div class="stat-fill" :style="{ width: (playerStats.fear / playerStats.maxFear * 100) + '%' }"></div>
+                            <span class="stat-value">{{ playerStats.fear }}/{{ playerStats.maxFear }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="hud-tools">
+                <button class="hud-tool-btn" @click="toggleInventory" title="背包">
+                    <span class="icon-img icon-bag"></span>
+                    <span class="hud-tool-label">背包</span>
+                    <span v-if="inventory.length > 0" class="tool-badge">{{ inventory.length }}</span>
+                </button>
+                <button class="hud-tool-btn" @click="toggleSaveMenuRpg" title="存档">
+                    <span class="icon-img icon-book"></span>
+                    <span class="hud-tool-label">存档</span>
+                </button>
+                <button class="hud-tool-btn" @click="toggleMenu" title="菜单">
+                    <span class="icon-img icon-settings"></span>
+                    <span class="hud-tool-label">菜单</span>
+                </button>
+            </div>
+        </div>
+        <div class="hud-scene" v-if="screen === 'game' && rpgMode && currentNode?.chapter && !stageIntroActive && !sceneImageVisible && !sceneExploreVisible && !currentNode.isDeath && !currentNode.isFinal && !currentNode.isEnding">{{ currentSceneName }}</div>
+        <div id="rpg-objective" v-if="screen === 'game' && rpgMode && currentNode && !stageIntroActive && !sceneImageVisible && !sceneExploreVisible && !currentNode.isDeath && !currentNode.isFinal && !currentNode.isEnding">
+            <div class="objective-eyebrow">{{ currentSceneName }}</div>
+            <div class="objective-text">{{ currentObjective }}</div>
+        </div>
+
+        <!-- ===== 主内容区 ===== -->
+        <div id="app-container" :class="{ 'ui-shatter': uiShatter }">
+            <!-- 开始界面 -->
+            <div v-if="screen === 'start'" id="start-screen">
+                <div class="paper-fall-layer" aria-hidden="true">
+                    <span></span><span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <div class="start-shell">
+                    <div class="start-kicker">癸卯旧案 · 夜半回门</div>
+                    <div class="start-title">
+                        <div class="start-seal">魂</div>
+                        <h1>回魂夜</h1>
+                        <p class="subtitle">纸人招魂</p>
+                    </div>
+                    <div class="start-meta">
+                        <span>守灵人</span>
+                        <span>子时入宅</span>
+                        <span>黄裱封名</span>
+                    </div>
+                    <div class="start-form">
+                        <input type="text" v-model="playerName" maxlength="12" placeholder="留下你的名字..." class="name-input">
+                        <button class="start-btn" @click="startGame" :disabled="!playerName.trim()">
+                            <span>入宅守灵</span>
+                            <span class="btn-hint">名字会写进黄裱纸</span>
+                        </button>
+                    </div>
+                    <div class="start-stats" v-if="stats.total_sessions > 0">
+                        <p>已有 {{ stats.total_sessions }} 人踏入老宅</p>
+                        <p>{{ stats.total_deaths }} 人永远留在了这里</p>
+                    </div>
+                    <div class="lastword-preview" v-if="randomLastWord">
+                        <span class="lw-label">前人遗言：</span>
+                        <span class="lw-text">{{ randomLastWord }}</span>
+                    </div>
+                    <div class="start-actions">
+                        <button class="action-btn" @click="toggleEndingBook">
+                            结局收集册
+                            <span v-if="endingCollection.length > 0" class="action-badge">{{ endingCollection.length }}/8</span>
+                        </button>
+                        <button class="action-btn" @click="toggleSaveMenuRpg" v-if="saveSlots.some(s => s)">
+                            读取进度
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 游戏主界面 -->
+            <div v-if="screen === 'game'" id="game-screen" :class="{ 'rpg-mode': rpgMode }">
+                <!-- 存档按钮 -->
+                <div class="game-actions" v-if="!rpgMode && currentNode && !currentNode.isDeath && !currentNode.isFinal && !currentNode.isEnding">
+                    <button class="game-action-btn" @click="toggleSaveMenu">💾 存档</button>
+                    <button class="game-action-btn" @click="toggleEndingBook">📜 收集册</button>
+                </div>
+                <div id="story-text" v-if="!rpgMode" v-html="displayText"></div>
+                
+                <!-- 选项按钮 -->
+                <div id="choices-container" v-if="!rpgMode && !isTyping && currentNode && !currentNode.holdRequired && !currentNode.fakeAlert && !currentNode.isDeath && !currentNode.isFinal && !currentNode.isEnding">
+                    <button 
+                        v-for="(choice, idx) in visibleChoices" 
+                        :key="idx"
+                        class="choice-btn"
+                        @click="makeChoice(choice)"
+                        :style="choiceDelay(idx)"
+                    >
+                        <span class="choice-index">{{ String.fromCharCode(65 + idx) }}</span>
+                        <span class="choice-text">{{ choice.text }}</span>
+                    </button>
+                </div>
+
+                <!-- 长按屏息 -->
+                <div id="hold-btn-container" v-if="!stageIntroActive && !isTyping && currentNode && currentNode.holdRequired">
+                    <div id="hold-btn" 
+                         :class="{ holding: holdActive, fail: holdFailed }"
+                         @touchstart.prevent="startHold"
+                         @mousedown.prevent="startHold"
+                         @touchend.prevent="endHold"
+                         @mouseup.prevent="endHold"
+                         @mouseleave.prevent="endHold"
+                    >
+                        <div class="fingerprint">
+                            <svg viewBox="0 0 100 100">
+                                <path d="M50 10 C30 10 15 25 15 45 C15 55 18 65 22 72 M25 78 C28 82 32 85 37 87 M42 88 C46 89 50 89 54 88 M59 87 C64 85 68 82 72 78 M76 72 C80 65 83 55 83 45 C83 25 68 10 50 10 M50 18 C36 18 25 29 25 43 C25 50 27 57 30 62 M33 67 C36 71 40 73 45 74 M50 75 C55 74 59 72 63 68 M67 63 C70 58 72 51 72 44 C72 30 61 19 50 19 M50 28 C42 28 36 34 36 42 C36 46 37 50 39 53 M42 57 C44 59 47 60 50 60 C53 60 56 59 58 57 M61 53 C62 50 63 46 63 43 C63 35 57 29 50 29" fill="none" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </div>
+                        <div class="hold-text">{{ holdText }}</div>
+                        <div class="hold-progress"><div id="hold-fill" :style="{ width: (holdProgress * 100) + '%' }"></div></div>
+                    </div>
+                </div>
+
+                <!-- 死亡界面 -->
+                <div v-if="!isTyping && !deathCGVisible && currentNode && currentNode.isDeath" id="death-screen">
+                    <div class="death-title">【结局：{{ currentNode.deathName }}】</div>
+                    <div class="death-desc">{{ currentNode.deathDesc }}</div>
+                    <div class="death-board" v-if="deathCount > 0">
+                        <p>门外站着密密麻麻的亲戚……</p>
+                        <p>你是今晚被拖进去的第 {{ deathCount }} 个人。</p>
+                    </div>
+                    <div class="last-death" v-if="lastDeathInfo">
+                        <p>上一个在此阵亡的玩家：{{ lastDeathInfo.death_name }}</p>
+                        <p>{{ lastDeathInfo.death_desc }}</p>
+                    </div>
+                    <div class="lastword-box">
+                        <p class="lw-prompt">留下一句遗言，封入黄裱纸</p>
+                        <input type="text" v-model="lastWordInput" maxlength="30" placeholder="下一个玩家会看到你的遗言..." class="lw-input">
+                        <button class="choice-btn" @click="submitLastWord">封入黄裱纸</button>
+                    </div>
+                    <button class="choice-btn" v-if="chapterCheckpoint" @click="restartFromCheckpoint" style="margin-bottom:8px;">↩ 回到本章开头（{{ chapterCheckpoint.chapter }}）</button>
+                    <button class="choice-btn restart-btn" @click="restartGame">重新来过</button>
+                    <button class="choice-btn" @click="shareEnding" style="margin-top:8px;">📤 分享结局</button>
+                    <button class="choice-btn" @click="toggleEndingBook" style="margin-top:8px;">📜 查看收集册</button>
+                </div>
+
+                <!-- 最终结局 -->
+                <div v-if="!isTyping && currentNode && (currentNode.isFinal || currentNode.isEnding)" id="ending-screen">
+                    <div class="ending-eyes"></div>
+                    <div class="ending-title" v-if="currentNode.endingName">【结局：{{ currentNode.endingName }}】</div>
+                    <div class="ending-title" v-else>【结局：深渊注视】</div>
+                    <div class="ending-text">{{ endingText }}</div>
+                    <div class="online-stats" v-if="onlineInfo">
+                        <p>还有 {{ onlineInfo.active_players }} 个灵魂正在黑暗中挣扎</p>
+                        <p>最近有 {{ onlineInfo.recent_deaths }} 人永远留在了这里</p>
+                    </div>
+                    <div class="lastword-box">
+                        <p class="lw-prompt">留下一句遗言，封入黄裱纸</p>
+                        <input type="text" v-model="lastWordInput" maxlength="30" placeholder="下一个玩家会看到你的遗言..." class="lw-input">
+                        <button class="choice-btn" @click="submitLastWord">封入黄裱纸</button>
+                    </div>
+                    <button class="choice-btn restart-btn" @click="restartGame">重新来过</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== RPG 对话框 ===== -->
+        <div id="rpg-dialog" v-if="screen === 'game' && rpgMode && currentNode && !stageIntroActive && !sceneImageVisible && !sceneExploreVisible && !currentNode.isDeath && !currentNode.isFinal && !currentNode.isEnding" :class="['active', { 'hold-node': currentNode.holdRequired }]" :style="{ '--story-progress': storyProgress }">
+            <div :class="[currentNode.speakerImage ? 'dialog-character-frame' : 'dialog-blood-frame', 'dialog-frame']">
+                <div class="dialog-text-area">
+                    <div class="dialog-text" v-html="displayText" :style="{ color: storyInkColor, textShadow: storyInkGlow }"></div>
+                </div>
+                <div class="dialog-next-hint" v-if="!isTyping && !sceneImageVisible && !visibleChoices.length && !currentNode.holdRequired && !currentNode.fakeAlert && !currentNode.camAlert && !currentNode.exploreScene && !currentNode.puzzleLock">▼ 点击继续</div>
+            </div>
+        </div>
+
+        <!-- ===== RPG 选项按钮 ===== -->
+        <div id="choices-rpg" v-if="screen === 'game' && rpgMode && !stageIntroActive && !isTyping && !sceneImageVisible && currentNode && !currentNode.holdRequired && !currentNode.fakeAlert && !currentNode.isDeath && !currentNode.isFinal && !currentNode.isEnding && !currentNode.camAlert && !currentNode.exploreScene && !currentNode.puzzleLock" class="active">
+            <button v-for="(choice, idx) in visibleChoices" :key="idx" class="talisman-btn" @click="makeChoice(choice)" :style="choiceDelay(idx)">
+                {{ choice.text }}
+            </button>
+        </div>
+
+        <!-- ===== RPG 主菜单 ===== -->
+        <transition name="menu">
+            <div id="main-menu" v-if="menuVisible" @click.self="toggleMenu">
+                <div class="menu-panel">
+                    <div class="menu-close-btn" @click="toggleMenu">×</div>
+                    <div class="menu-title-text">菜单</div>
+                    <div class="menu-items-rpg">
+                        <button type="button" class="menu-item-rpg" @click="menuContinue">继续游戏</button>
+                        <button type="button" class="menu-item-rpg" @click="menuAction('save')">存档进度</button>
+                        <button type="button" class="menu-item-rpg" @click="menuAction('load')">读取进度</button>
+                        <button type="button" class="menu-item-rpg" @click="menuAction('settings')">游戏设置</button>
+                        <button type="button" class="menu-item-rpg" @click="menuReturnTitle">返回主菜单</button>
+                        <button type="button" class="menu-item-rpg" @click="menuQuit">退出游戏</button>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- ===== RPG 道具栏 ===== -->
+        <transition name="panel">
+            <div id="inventory-panel" v-if="inventoryVisible" @click.self="toggleInventory">
+                <div class="inv-frame">
+                    <div class="inv-title">背包</div>
+                    <div class="inv-grid">
+                        <div v-for="i in 10" :key="i" class="inv-slot" :class="{ empty: !inventory[i-1] }" @click="selectInventoryItem(i-1)" @touchstart.passive="startItemPress(inventory[i-1])" @touchend="endItemPress" @touchcancel="endItemPress" @mousedown="startItemPress(inventory[i-1])" @mouseup="endItemPress" @mouseleave="endItemPress">
+                            <img v-if="inventory[i-1] && getItemImage(inventory[i-1])" :src="getItemImage(inventory[i-1])" alt="">
+                        </div>
+                    </div>
+                    <div class="inv-detail-area" v-if="selectedItem">
+                        <div class="detail-name">{{ selectedItem.name }}</div>
+                        <div class="detail-desc">{{ selectedItem.desc }}</div>
+                        <div class="inv-actions">
+                            <button type="button" class="inv-action-btn" @click.stop="inspectSelectedItem">查看</button>
+                            <button type="button" class="inv-action-btn" :disabled="!canCombineSelectedItem()" @click.stop="combineSelectedItem">组合</button>
+                        </div>
+                    </div>
+                    <div class="inv-detail-area" v-else>
+                        <div class="detail-desc">点击道具查看详情</div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- ===== RPG 设置面板 ===== -->
+        <transition name="panel">
+            <div id="settings-panel" v-if="settingsVisible" @click.self="toggleSettings">
+                <div class="settings-frame">
+                    <div class="settings-title">游戏设置</div>
+                    <div class="setting-row-rpg">
+                        <span class="setting-label">文字速度</span>
+                        <div class="setting-control">
+                            <input type="range" min="1" max="5" v-model.number="textSpeed" @input="saveSettings">
+                            <span style="font-size:12px;color:#5a3a1a;width:24px;text-align:center;">{{ textSpeed }}</span>
+                        </div>
+                    </div>
+                    <div class="setting-row-rpg">
+                        <span class="setting-label">音效</span>
+                        <div class="toggle-switch" :class="{ on: soundEnabled }" @click="toggleSound()"></div>
+                    </div>
+                    <div class="setting-row-rpg">
+                        <span class="setting-label">震动</span>
+                        <div class="toggle-switch" :class="{ on: vibrationEnabled }" @click="vibrationEnabled = !vibrationEnabled; saveSettings()"></div>
+                    </div>
+                    <div class="setting-row-rpg">
+                        <span class="setting-label">RPG界面</span>
+                        <div class="toggle-switch on" @click="rpgMode = true; saveSettings()"></div>
+                    </div>
+                    <div style="text-align:center;margin-top:20px;">
+                        <button class="talisman-btn" style="padding:10px 40px;" @click="toggleSettings">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- ===== RPG 存档面板 ===== -->
+        <transition name="panel">
+            <div id="save-menu-rpg" v-if="showSaveMenuRpg" @click.self="toggleSaveMenuRpg">
+                <div class="save-frame">
+                    <div class="save-title">存档管理</div>
+                    <div class="save-slots-area">
+                        <div v-for="(slot, idx) in [0,1,2]" :key="idx" class="save-slot-row" :class="{ empty: !saveSlots[idx] }">
+                            <div v-if="saveSlots[idx] && saveSlots[idx].bgImage" class="slot-thumb" :style="{ backgroundImage: 'url(' + saveSlots[idx].bgImage + ')', backgroundSize: 'cover' }"></div>
+                            <div v-else class="slot-thumb">?</div>
+                            <div class="slot-info">
+                                <div class="slot-name">{{ saveSlots[idx] ? saveSlots[idx].nodeName : '空槽位 ' + (idx + 1) }}</div>
+                                <div class="slot-meta" v-if="saveSlots[idx]">
+                                    <span>{{ saveSlots[idx].time }}</span>
+                                    <span>HP:{{ saveSlots[idx].hp || '?' }}</span>
+                                </div>
+                            </div>
+                            <div class="slot-actions">
+                                <button v-if="screen === 'game' && currentNode && !currentNode.isDeath && !currentNode.isFinal && !currentNode.isEnding" class="slot-action" @click="manualSaveRpg(idx)">保存</button>
+                                <button v-if="saveSlots[idx]" class="slot-action" @click="manualLoad(idx)">读取</button>
+                                <button v-if="saveSlots[idx]" class="slot-action delete" @click="deleteSave(idx)">删除</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align:center;margin-top:8px;">
+                        <button class="talisman-btn" style="padding:8px 36px;" @click="toggleSaveMenuRpg">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- ===== 伪造系统弹窗（电量不足） ===== -->
+        <div id="fake-alert" v-if="fakeAlertVisible">
+            <div class="alert-mask"></div>
+            <div :class="rpgMode ? 'alert-box-rpg' : 'alert-box'">
+                <div :class="rpgMode ? 'alert-title-rpg' : 'alert-title'">电量不足</div>
+                <div :class="rpgMode ? 'alert-msg-rpg' : 'alert-msg'">电池电量仅剩 <span id="alert-percent">{{ batteryPercent }}%</span></div>
+                <div :class="rpgMode ? 'alert-btn-rpg' : 'alert-btn'" :class="{ blood: alertBlood }" @click="closeFakeAlert">关闭</div>
+            </div>
+        </div>
+
+        <!-- ===== 监控画面弹窗 ===== -->
+        <div id="cam-alert" v-if="camAlertVisible" @click="closeCamAlert">
+            <div class="cam-overlay">
+                <div class="cam-header">
+                    <span class="cam-rec">● REC</span>
+                    <span class="cam-date">1997/09/22 23:46:18</span>
+                    <span class="cam-id">CAM 3</span>
+                </div>
+                <div class="cam-body">
+                    <img src="img/death/death_09_possess.jpg" class="cam-img" alt="">
+                    <div class="cam-scanlines"></div>
+                    <div class="cam-static"></div>
+                    <div class="cam-glitch"></div>
+                </div>
+                <div class="cam-footer">
+                    <span class="cam-hint">点击屏幕关闭监控</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 死亡CG层（新增）===== -->
+        <transition name="cg-fade">
+            <div id="death-cg" v-if="deathCGVisible">
+                <img :src="deathCGUrl" class="cg-img" alt="">
+                <div class="cg-overlay">
+                    <div class="cg-blood-text">{{ deathCGName }}</div>
+                    <div class="cg-desc">{{ deathCGDesc }}</div>
+                </div>
+                <div class="cg-vignette"></div>
+            </div>
+        </transition>
+
+        <!-- ===== 结局CG层（新增）===== -->
+        <transition name="cg-fade">
+            <div id="ending-cg" v-if="endingCGVisible">
+                <img :src="endingCGUrl" class="cg-img" alt="">
+                <div class="cg-vignette"></div>
+            </div>
+        </transition>
+
+        <!-- ===== Jumpscare 层 ===== -->
+        <div id="jumpscare" v-if="jumpscareVisible">
+            <img src="img/death/death_12_wedding.jpg" id="js-img" alt="">
+        </div>
+
+        <!-- ===== 存档菜单 ===== -->
+        <div id="save-menu" v-if="showSaveMenu" @click.self="toggleSaveMenu">
+            <div class="save-overlay">
+                <div class="save-title">💾 存档管理</div>
+                <div class="save-slots">
+                    <div v-for="(slot, idx) in [0,1,2]" :key="idx" class="save-slot" :class="{ empty: !saveSlots[idx] }">
+                        <div class="slot-num">槽位 {{ idx + 1 }}</div>
+                        <div v-if="saveSlots[idx]" class="slot-info">
+                            <div class="slot-chapter">{{ saveSlots[idx].nodeName }}</div>
+                            <div class="slot-time">{{ saveSlots[idx].time }}</div>
+                        </div>
+                        <div v-else class="slot-empty">空</div>
+                        <div class="slot-actions">
+                            <button v-if="screen === 'game' && currentNode && !currentNode.isDeath && !currentNode.isFinal && !currentNode.isEnding" class="slot-btn save" @click="manualSave(idx)">保存</button>
+                            <button v-if="saveSlots[idx]" class="slot-btn load" @click="manualLoad(idx)">读取</button>
+                        </div>
+                    </div>
+                </div>
+                <button class="save-close" @click="toggleSaveMenu">{{ t("close") }}</button>
+            </div>
+        </div>
+
+        <!-- ===== 场景探索 ===== -->
+        <div id="scene-explore" v-if="sceneExploreVisible" @click.self="closeSceneExplore">
+            <div class="explore-container">
+                <div class="explore-head">
+                    <div>
+                        <div class="explore-kicker">{{ currentSceneName }}</div>
+                        <div class="explore-title">{{ exploreTitle }}</div>
+                    </div>
+                    <div class="explore-progress">{{ exploreProgressText }}</div>
+                </div>
+                <div class="explore-hint">{{ selectedItem ? '正在使用：' + selectedItem.name + '，点场景物件尝试使用。' : exploreHint }}</div>
+                <div class="explore-inventory" v-if="inventory.length > 0">
+                    <button
+                        v-for="itemKey in inventory"
+                        :key="itemKey"
+                        type="button"
+                        class="explore-item"
+                        :class="{ selected: selectedItem && selectedItem.key === itemKey }"
+                        @click="selectInventoryKey(itemKey)"
+                        @touchstart.passive="startItemPress(itemKey)" @touchend="endItemPress" @touchcancel="endItemPress"
+                        @mousedown="startItemPress(itemKey)" @mouseup="endItemPress" @mouseleave="endItemPress"
+                    >
+                        <img v-if="getItemImage(itemKey)" :src="getItemImage(itemKey)" alt="">
+                        <span>{{ getItemName(itemKey) }}</span>
+                    </button>
+                </div>
+                <div class="explore-craft" v-if="craftableRecipes.length > 0">
+                    <button
+                        v-for="r in craftableRecipes"
+                        :key="r.baseKey"
+                        type="button"
+                        class="explore-craft-btn"
+                        @click="craftInExplore(r.baseKey)"
+                    >⚗ 合成「{{ r.resultName }}」</button>
+                </div>
+                <div class="explore-scene" :style="{ backgroundImage: 'url(' + exploreImage + ')' }">
+                    <div v-for="(hs, idx) in exploreHotspots" :key="idx"
+                         class="hotspot"
+                         :class="{ 'requires-item': hs.requireItem, 'ready-use': selectedItem && selectedItem.key === hs.requireItem }"
+                         :style="{ left: hs.x + '%', top: hs.y + '%', width: hs.w + '%', height: hs.h + '%' }"
+                         :aria-label="hs.label || hs.itemName || hs.id"
+                         :data-hotspot-id="hs.id || hs._id"
+                         @click.stop="onHotspotClick(hs)">
+                        <span class="hotspot-pin"></span>
+                        <span class="hotspot-label">{{ hs.label || hs.itemName || '可疑处' }}</span>
+                    </div>
+                </div>
+                <div class="explore-selected" v-if="selectedItem">
+                    <span>{{ selectedItem.name }}</span>
+                    <button type="button" @click="selectedItem = null">取消使用</button>
+                </div>
+                <button class="explore-close" @click="closeSceneExplore">{{ exploreCloseText || t('close') }}</button>
+            </div>
+        </div>
+
+        <!-- ===== 密码锁 ===== -->
+        <div id="puzzle-lock" v-if="puzzleVisible" @click.self="closePuzzle">
+            <div class="puzzle-container">
+                <div class="puzzle-title">🔒 密码锁</div>
+                <div class="puzzle-hint" v-if="puzzleHint">{{ puzzleHint }}</div>
+                <div class="puzzle-display">{{ puzzleInput || '----' }}</div>
+                <div class="puzzle-keypad">
+                    <button v-for="n in ['1','2','3','4','5','6','7','8','9','clear','0','enter']" :key="n"
+                            class="puzzle-key" :class="{ action: n === 'clear' || n === 'enter' }"
+                            @click="onPuzzleKey(n)">
+                        {{ n === 'clear' ? 'C' : n === 'enter' ? '✓' : n }}
+                    </button>
+                </div>
+                <button class="puzzle-close" @click="closePuzzle">{{ t('close') }}</button>
+            </div>
+        </div>
+
+        <!-- ===== 道具特写 ===== -->
+        <div id="item-closeup" v-if="closeupVisible" @click.self="closeCloseup">
+            <div class="closeup-container">
+                <div class="closeup-title">{{ closeupTitle }}</div>
+                <img :src="closeupImage" class="closeup-img" alt="item">
+                <div class="closeup-text">{{ closeupText }}</div>
+                <div class="closeup-hint" v-if="closeupHint">{{ closeupHint }}</div>
+                <button class="closeup-btn" @click="closeCloseup">{{ t('close') }}</button>
+            </div>
+        </div>
+
+        <!-- ===== 结局收集册 ===== -->
+        <div id="ending-book" v-if="showEndingBook" @click.self="toggleEndingBook">
+            <div class="book-overlay">
+                <div class="book-title">📜 黄裱纸收集册</div>
+                <div class="book-grid">
+                    <div v-for="code in ['A','B','C','D','E','F','G','H']" :key="code" class="book-cell" :class="{ unlocked: endingCollection.includes(code), legendary: ['F','G','H'].includes(code) }">
+                        <div class="cell-lock" v-if="!endingCollection.includes(code)">?</div>
+                        <div class="cell-content" v-else>
+                            <div class="cell-code">{{ code }}</div>
+                            <div class="cell-name">{{ getEndingName(code) }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="book-progress">
+                    收集进度：{{ endingCollection.length }} / 8
+                </div>
+                <button class="book-close" @click="toggleEndingBook">{{ t("close") }}</button>
+            </div>
+        </div>
+
+        <!-- ===== 加载层 ===== -->
+        <div id="loading" v-if="loading">
+            <div class="loading-text">正在连接老宅...</div>
+            <div class="loading-dots"><span></span><span></span><span></span></div>
+        </div>
+    </div>
+
+    <script type="module" src="js/app.js?v=20260601-hotfix21"></script>
+    <script>
+        // 单机版：注册极简 Service Worker，使本站可"添加到主屏幕 / 像 app 全屏启动"。
+        // 直通不缓存，避免陈旧缓存问题。
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .catch(err => console.log('SW 注册失败', err));
+            });
+        }
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
